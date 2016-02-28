@@ -1,10 +1,10 @@
 /* canvas-toBlob.js
  * A canvas.toBlob() implementation.
- * 2011-07-13
+ * 2013-12-27
  * 
- * By Eli Grey, http://eligrey.com
- * License: X11/MIT
- *   See LICENSE.md
+ * By Eli Grey, http://eligrey.com and Devin Samarin, https://github.com/eboyjr
+ * License: MIT
+ *   See https://github.com/eligrey/canvas-toBlob.js/blob/master/LICENSE.md
  */
 
 /*global self */
@@ -18,7 +18,9 @@
 var
 	  Uint8Array = view.Uint8Array
 	, HTMLCanvasElement = view.HTMLCanvasElement
+	, canvas_proto = HTMLCanvasElement && HTMLCanvasElement.prototype
 	, is_base64_regex = /\s*;\s*base64\s*(?:;|$)/i
+	, to_data_url = "toDataURL"
 	, base64_ranks
 	, decode_base64 = function(base64) {
 		var
@@ -56,7 +58,7 @@ var
 		// 2/3 chance there's going to be some null bytes at the end, but that
 		// doesn't really matter with most image formats.
 		// If it somehow matters for you, truncate the buffer up outptr.
-		return buffer.buffer;
+		return buffer;
 	}
 ;
 if (Uint8Array) {
@@ -68,24 +70,29 @@ if (Uint8Array) {
 		, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51
 	]);
 }
-if (HTMLCanvasElement && !HTMLCanvasElement.prototype.toBlob) {
-	HTMLCanvasElement.prototype.toBlob = function(callback, type /*, ...args*/) {
-		if (!type) {
+if (HTMLCanvasElement && !canvas_proto.toBlob) {
+	canvas_proto.toBlob = function(callback, type /*, ...args*/) {
+		  if (!type) {
 			type = "image/png";
+		} if (this.mozGetAsFile) {
+			callback(this.mozGetAsFile("canvas", type));
+			return;
+		} if (this.msToBlob && /^\s*image\/png\s*(?:$|;)/i.test(type)) {
+			callback(this.msToBlob());
+			return;
 		}
+
 		var
 			  args = Array.prototype.slice.call(arguments, 1)
-			, dataURI = this.toDataURL.apply(this, args)
+			, dataURI = this[to_data_url].apply(this, args)
 			, header_end = dataURI.indexOf(",")
 			, data = dataURI.substring(header_end + 1)
 			, is_base64 = is_base64_regex.test(dataURI.substring(0, header_end))
-			, BlobBuilder = view.BlobBuilder || view.WebKitBlobBuilder || view.MozBlobBuilder
-			, bb = new BlobBuilder
 			, blob
 		;
-		if (BlobBuilder.fake) {
+		if (Blob.fake) {
 			// no reason to decode a data: URI that's just going to become a data URI again
-			blob = bb.getBlob(type);
+			blob = new Blob
 			if (is_base64) {
 				blob.encoding = "base64";
 			} else {
@@ -95,13 +102,23 @@ if (HTMLCanvasElement && !HTMLCanvasElement.prototype.toBlob) {
 			blob.size = data.length;
 		} else if (Uint8Array) {
 			if (is_base64) {
-				bb.append(decode_base64(data));
+				blob = new Blob([decode_base64(data)], {type: type});
 			} else {
-				bb.append(decodeURIComponent(data));
+				blob = new Blob([decodeURIComponent(data)], {type: type});
 			}
-			blob = bb.getBlob(type);
 		}
 		callback(blob);
 	};
+
+	if (canvas_proto.toDataURLHD) {
+		canvas_proto.toBlobHD = function() {
+			to_data_url = "toDataURLHD";
+			var blob = this.toBlob();
+			to_data_url = "toDataURL";
+			return blob;
+		}
+	} else {
+		canvas_proto.toBlobHD = canvas_proto.toBlob;
+	}
 }
-}(self));
+}(typeof self !== "undefined" && self || typeof window !== "undefined" && window || this.content || this));

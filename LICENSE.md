@@ -1,9 +1,9 @@
-This software is licensed under the MIT/X11 license.
+This software is licensed under the MIT license.
 
-MIT/X11 license
----------------
+MIT license
+-----------
 
-Copyright &copy; 2011 [Eli Grey][1].
+Copyright &copy; 2011 [Eli Grey][1] and [Devin Samarin][2].
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -28,3 +28,4 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 
   [1]: http://eligrey.com
+  [2]: https://github.com/dsamarin
